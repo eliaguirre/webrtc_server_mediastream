@@ -1,0 +1,15 @@
+{
+    "name": "comunica",
+    "version": "1.0.0",
+    "keywords": ["util", "functional", "server", "client", "browser"],
+    "author": "evolutel",
+    "contributors": [],
+    "dependencies": {
+        "express": ">=4.x",
+        "mustache-express": ">=1.2",
+        "body-parser": ">=1.15"
+    },
+    "scripts": {
+        "start": "node webrtc_server.js"
+    }
+}

@@ -1,0 +1,209 @@
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>Telemedicina</title>
+        <link href="dist/css/bootstrap.min.css"             rel="stylesheet" type="text/css">
+        <link href="dist/css/material.css"                  rel="stylesheet" type="text/css">
+        <link href="dist/css/material-fullpalette.min.css"  rel="stylesheet" type="text/css">
+        <link href="dist/css/ripples.css"                   rel="stylesheet" type="text/css">
+        <link href="dist/css/font-awesome.min.css"          rel="stylesheet" type="text/css">
+        <link href="dist/css/app.css"                       rel="stylesheet" type="text/css">
+    </head>
+    <body>
+        <nav class="navbar-inverse navbar-fixed-top hide">
+            <div class="container">
+                <div class="navbar-header" style="color: white">
+                    Comunica
+                </div>
+                <div id="navbar" class="navbar-collapse collapse">
+                    <ul class="nav navbar-nav navbar-right">
+                        <li><a href=""></a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        <div id="settings-container" class="hide">
+            Session id <input type="text" id="session_txt" value="{{session}}" size="10">
+            <input class="btn" type="button" id="join_but" value="Join" >
+            <input class="btn" type="button" id="call_but" value="Call" disabled><br>
+            <input type="checkbox" id="audio_cb" checked>Audio<br>
+            <input type="checkbox" id="video_cb" checked>Video<br>
+            <input type="checkbox" id="chat_cb" >Chat
+            <div id="audio-only-container">Audio-only call</div>
+            <div id="share-container">
+                Send link to a friend: <a id="share_link" target="_blank" href=""></a>
+            </div>
+        </div>
+        <div class="container" id="cuerpo" style="    margin-top: -20px;">
+            <div class="row ">
+                <div class="logo_pre" style="width: 200px;float: left;padding: 20px">
+                    <img src="/dist/img/logo_evo_colores.png" class="img-responsive">
+                    <img src="/dist/img/escena.png" class="img-responsive">
+                    <img src="/dist/img/mdf.png" class="img-responsive">
+                    <img src="/dist/img/miwifi.png" class="img-responsive">
+                </div>
+                <div class="" style="width: calc( 100% - 200px );float: left">
+                    <div class="row"  id="principal">
+                        <div class="col-sm-12 video-container" >
+                            <video id="self_view" class=" self shadow-z-2 " autoplay="" ></video>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12 remotos" >
+            </div>
+        </div>
+        <div class="container hide">
+        </div>
+        <div id="log_div"></div>
+        <h5 class="text-center">®2015. Evolutel S.A de C.V. Designed by Evolutel. | www.evolutel.com.mx</h5>
+        <script src="dist/js/jquery-2.1.4.min.js"           type="text/javascript"></script>
+        <script src="dist/js/bootstrap.js"                  type="text/javascript"></script>
+        <script src="dist/js/jquery.validationEngine-es.js" type="text/javascript"></script> 
+        <script src="dist/js/validate.engine.js"            type="text/javascript"></script> 
+        <script src="dist/js/signaling_channel.js"          type="text/javascript"></script>
+        <script src="dist/js/sdp.js"                        type="text/javascript"></script>
+        <script src="dist/js/main.js"                       type="text/javascript"></script>
+        <script src="dist/js/ws/mqttws31.js"                type="text/javascript"></script>   
+        <script src="dist/js/ws/websocket.js"               type="text/javascript"></script> 
+        <script>
+
+function notificacion() {
+    if (!checkPermission()) {
+        $("#btn-modal-activar-notificaciones").click(function () {
+            requestPermission();
+        });
+        $("#modal-activar-notificaciones").modal("show");
+    }
+}
+
+function guid() {
+    function s4() {
+        return Math.floor((1 + Math.random()) * 0x10000)
+                .toString(16)
+                .substring(1);
+    }
+    return s4() + s4() + '' + s4() + '' + s4() + '' +
+            s4() + '' + s4() + s4() + s4();
+}
+
+yo = {
+    id: guid(),
+    nombre: "tu medico"
+}
+config = {
+    topic: "teleasistencia"
+}
+
+$(document).ready(function () {
+    tickets = Array();
+    console.log(window.location.hostname);
+    con = new WebSocketMQTT("172.17.0.19", 9001, {});
+
+    peers.onAdd = function () {
+        con.signal({
+            type: "connect",
+            data: {
+                cam: "inicial"
+            }
+        });
+    }
+    con.onConnect = function () {
+        join_conference()
+        con.subscribe("/teleasistencia");
+        con.onSignal("connect", function (data) {
+            var id = div.getAttribute("id");
+            if (!id) {
+                div.setAttribute("id", data.cam)
+            }
+        });
+        con.onSignal("change", function (data) {
+            console.log(data);
+            replace_t($("#" + data.cam));
+        });
+    }
+    con.connect();
+});
+
+function init_conference(isInitiator) {
+    pc = new webkitRTCPeerConnection(configuration);
+    pc.onicecandidate = function (evt) {
+        if (evt.candidate) {
+            var candidate = "";
+            var s = SDP.parse("m=application 0 NONE\r\na=" + evt.candidate.candidate + "\r\n");
+            var candidateDescription = s && s.mediaDescriptions[0].ice.candidates[0];
+            if (!candidateDescription)
+                candidate = evt.candidate.candidate;
+            peers.send(JSON.stringify({
+                "candidate": {
+                    "candidate": candidate,
+                    "candidateDescription": candidateDescription,
+                    "sdpMLineIndex": evt.candidate.sdpMLineIndex
+                }
+            }));
+            console.log("candidate emitted: " + evt.candidate.candidate);
+        }
+    };
+    pc.onnegotiationneeded = function () {
+        if (pc.signalingState == "stable" && !isMozilla || isInitiator)
+            pc.createOffer(localDescCreated, logError);
+    };
+    if (isInitiator) {
+        channel = pc.createDataChannel("chat");
+    } else {
+        pc.ondatachannel = function (evt) {
+            channel = evt.channel;
+        };
+    }
+
+    pc.onaddstream = function (evt) {
+        console.log(evt);
+        div = document.createElement("div");
+        var vid = document.createElement("video");
+        div.setAttribute("class", "video-container");
+        vid.setAttribute("class", "remote shadow-z-2");
+        vid.setAttribute("autoplay", "true");
+        div.appendChild(vid);
+        vid.src = URL.createObjectURL(evt.stream);
+        vid.muted = true;
+        sendOrientationUpdate();
+        $(".remotos").append(div);
+        $(div).one("click", replace);
+
+    };
+    pc.addStream(localStream);
+}
+
+function replace(elem) {
+    replace_t(elem.currentTarget)
+//    $(elem.currentTarget).find("video").removeClass("remote");
+//    $(elem.currentTarget).find("video").get(0).muted = false;
+//    $("#principal video").get(0).muted = true;
+//    $("#principal div.video-container").one("click", replace);
+//    $("#principal video").addClass("remote");
+//    $(".remotos").append($("#principal div.video-container"));
+//    $("#principal").append($(elem.currentTarget));
+//    $("video").each(function (i, v) {
+//        v.play();
+//    })
+}
+
+function replace_t(elem) {
+
+    $(elem).find("video").removeClass("remote");
+    $(elem).find("video").get(0).muted = false;
+    $("#principal video").get(0).muted = true;
+//    $("#principal div.video-container").removeClass("col-md-8").removeClass("col-md-offset-2")
+    $("#principal div.video-container").one("click", replace);
+    $("#principal video").addClass("remote");
+//    $(elem.currentTarget).addClass("col-md-8").addClass("col-md-offset-2")
+    $(".remotos").append($("#principal div.video-container"));
+    $("#principal").append($(elem));
+    $("video").each(function (i, v) {
+        v.play();
+    })
+}
+
+        </script>
+    </body>
+</html>
